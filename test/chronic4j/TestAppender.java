@@ -35,9 +35,9 @@ import org.junit.Test;
  *
  * @author evans
  */
-public class ChronicAppenderTest {
+public class TestAppender {
 
-    public ChronicAppenderTest() {
+    public TestAppender() {
     }
 
     @BeforeClass
@@ -62,7 +62,7 @@ public class ChronicAppenderTest {
         Logger.getRootLogger().getLoggerRepository().resetConfiguration();
         Logger.getRootLogger().addAppender(new ConsoleAppender(new PatternLayout("%d{ISO8601} %p [%c{1}] %m%n")));
         Logger.getRootLogger().addAppender(appender);
-        Logger logger = Logger.getLogger(ChronicAppenderTest.class);
+        Logger logger = Logger.getLogger(TestAppender.class);
         logger.warn("test");
         appender.run();
     }
