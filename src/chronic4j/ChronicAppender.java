@@ -59,7 +59,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     private final ArrayDeque<LoggingEvent> deque = new ArrayDeque();
     private long period = TimeUnit.SECONDS.toMillis(60);
-    private String postAddress = "https://chronica.co/post";
+    private String postAddress = "https://secure.chronica.co/post"; // TODO resolve
     private final int maximumPostLength = 2000;
     private boolean initialized;
     private boolean running;
