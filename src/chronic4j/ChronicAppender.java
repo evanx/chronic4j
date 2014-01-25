@@ -242,6 +242,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     }
     
     private String post(String urlString) {
+        logger.info("post {}", urlString);
         HttpsURLConnection connection;
         String response = null;
         try {
