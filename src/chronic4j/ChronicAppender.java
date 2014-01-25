@@ -31,7 +31,6 @@ import java.util.TimeZone;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import org.apache.log4j.AppenderSkeleton;
@@ -56,10 +55,11 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
 
     static Logger logger = LoggerFactory.getLogger(ChronicAppender.class);
 
+    private final String resolveUrl = "https://secure.chronica.co/resolve";
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     private final ArrayDeque<LoggingEvent> deque = new ArrayDeque();
     private long period = TimeUnit.SECONDS.toMillis(60);
-    private String postAddress = "https://secure.chronica.co/post"; // TODO resolve
+    private String postUrl;
     private final int maximumPostLength = 2000;
     private boolean initialized;
     private boolean running;
@@ -69,16 +69,16 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     SSLContext sslContext;
     ChronicProcessor processor = new DefaultProcessor();
     String topicLabel;
-    
+
     public ChronicAppender() {
     }
 
     public ChronicAppender(String postAddress) {
-        this.postAddress = postAddress;
+        this.postUrl = postAddress;
     }
 
     public void setKeyStore(String keyStore) {
-        this.keyStoreLocation = keyStore;        
+        this.keyStoreLocation = keyStore;
     }
 
     public void setPeriod(String period) {
@@ -88,7 +88,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
             logger.error("Invalid period: {}", period);
         }
     }
-    
+
     public void setPass(String pass) {
         this.sslPass = pass.toCharArray();
     }
@@ -108,7 +108,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     public void setTopicLabel(String topicLabel) {
         this.topicLabel = topicLabel;
     }
-        
+
     @Override
     protected void append(LoggingEvent le) {
         if (le.getLoggerName().equals(logger.getName())) {
@@ -133,7 +133,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     }
 
     private void initialize() {
-        logger.info("initialize: postAddress {}", postAddress);
+        logger.info("initialize: postAddress {}", postUrl);
         if (processor == null) {
             logger.error("Require processor class parameter: processorClass");
             return;
@@ -169,12 +169,21 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
 
     @Override
     public void run() {
-        logger.info("run {} {}", deque.size(), postAddress);
+        logger.info("run {} {}", deque.size(), postUrl);
         taskTimestamp = System.currentTimeMillis();
         Deque<LoggingEvent> snapshot;
         synchronized (deque) {
             snapshot = deque.clone();
             deque.clear();
+        }
+        if (postUrl == null) {
+            String response = post(resolveUrl);
+            if (response.startsWith("ERROR")) {
+                logger.error("resolve {}", response);
+                return;
+            }
+            postUrl = String.format("https://%s/post", response);
+            logger.info("resolve {}", postUrl);
         }
         StringBuilder builder = new StringBuilder();
         String report = processor.buildReport();
@@ -199,33 +208,61 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
             builder.append(formattedString);
             builder.append("\n");
         }
-        post(builder.toString());
+        post(postUrl, builder.toString());
     }
 
-    private void post(String string) {
+    private String post(String urlString, String string) {
         HttpsURLConnection connection;
+        String response = null;
         try {
             byte[] bytes = string.getBytes();
             logger.trace("post: {}", bytes.length);
-            URL url = new URL(postAddress);
-            connection = (HttpsURLConnection) url.openConnection();
+            connection = (HttpsURLConnection) new URL(urlString).openConnection();
             connection.setSSLSocketFactory(sslContext.getSocketFactory());
             connection.setUseCaches(false);
-            connection.setDoInput(true);
             connection.setDoOutput(true);
+            connection.setDoInput(true);
             connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "plain/text");			
+            connection.setRequestProperty("Content-Type", "plain/text");
             connection.setRequestProperty("Content-Length", Integer.toString(bytes.length));
             try (OutputStream outputStream = connection.getOutputStream()) {
                 outputStream.write(bytes);
             }
+            logger.info("responseCode {}", connection.getResponseCode());
             try (InputStream inputStream = connection.getInputStream()) {
-                logger.debug("chronica response {}", Streams.readString(inputStream));
+                response = Streams.readString(inputStream);
+                logger.debug("chronica response {}", response);
             }
             connection.disconnect();
         } catch (IOException e) {
             logger.warn("post", e);
         } finally {
         }
+        return response;
     }
+    
+    private String post(String urlString) {
+        HttpsURLConnection connection;
+        String response = null;
+        try {
+            connection = (HttpsURLConnection) new URL(urlString).openConnection();
+            connection.setSSLSocketFactory(sslContext.getSocketFactory());
+            connection.setUseCaches(false);
+            connection.setDoOutput(false);
+            connection.setDoInput(true);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "plain/text");
+            logger.info("responseCode {}", connection.getResponseCode());
+            try (InputStream inputStream = connection.getInputStream()) {
+                response = Streams.readString(inputStream);
+                logger.debug("chronica response {}", response);
+            }
+            connection.disconnect();
+        } catch (IOException e) {
+            logger.warn("post", e);
+        } finally {
+        }
+        return response;
+    }    
 }
+
