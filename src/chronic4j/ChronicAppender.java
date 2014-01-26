@@ -133,7 +133,6 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     }
 
     private void initialize() {
-        logger.info("initialize: postAddress {}", postUrl);
         if (processor == null) {
             logger.error("Require processor class parameter: processorClass");
             return;
@@ -145,7 +144,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         if (topicLabel == null) {
             topicLabel = processor.getClass().getSimpleName();
         }
-        logger.info("initialize: topic {}, processor {}", topicLabel, processor.getClass());
+        logger.info("initialize {} {}", topicLabel, processor.getClass().getName());
         try {
             sslContext = SSLContexts.create(keyStoreLocation, sslPass, new OpenTrustManager());
             running = true;
@@ -167,15 +166,24 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         return false;
     }
 
+    Deque<LoggingEvent> snapshot;
+
     @Override
     public void run() {
-        logger.info("run {} {}", deque.size(), postUrl);
+        logger.info("run {}", deque.size());
         taskTimestamp = System.currentTimeMillis();
-        Deque<LoggingEvent> snapshot;
         synchronized (deque) {
             snapshot = deque.clone();
             deque.clear();
         }
+        try {
+            post();
+        } catch (Throwable e) {
+            logger.error("run", e);
+        }
+    }
+
+    private void post() {
         if (postUrl == null) {
             String response = post(resolveUrl);
             if (response.startsWith("ERROR")) {
@@ -240,7 +248,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         }
         return response;
     }
-    
+
     private String post(String urlString) {
         logger.info("post {}", urlString);
         HttpsURLConnection connection;
@@ -264,6 +272,5 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         } finally {
         }
         return response;
-    }    
+    }
 }
-
