@@ -30,6 +30,7 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import vellum.ssl.OpenHostnameVerifier;
 import vellum.ssl.OpenTrustManager;
 import vellum.ssl.SSLContexts;
 import vellum.util.Streams;
@@ -44,7 +45,7 @@ public class ChronicPoster {
 
     private final int maximumPostLength = 2000;
     private SSLContext sslContext;
-    
+
     public ChronicPoster() {
     }
 
@@ -55,12 +56,13 @@ public class ChronicPoster {
     public String post(String urlString) throws IOException {
         return post(urlString, null);
     }
-    
+
     public String post(String urlString, String string) throws IOException {
         HttpsURLConnection connection;
         String response = null;
         connection = (HttpsURLConnection) new URL(urlString).openConnection();
         connection.setSSLSocketFactory(sslContext.getSocketFactory());
+        connection.setHostnameVerifier(new OpenHostnameVerifier());
         connection.setUseCaches(false);
         connection.setDoInput(true);
         connection.setRequestMethod("POST");

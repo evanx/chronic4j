@@ -42,6 +42,7 @@ import vellum.data.Millis;
 import vellum.exception.ParseException;
 import vellum.format.CalendarFormats;
 import vellum.format.Delimiters;
+import vellum.ssl.OpenHostnameVerifier;
 import vellum.ssl.OpenTrustManager;
 import vellum.ssl.SSLContexts;
 import vellum.util.Args;
@@ -186,7 +187,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     private void post() {
         if (postUrl == null) {
             if (!resolve()) {
-                return ;
+                return;
             }
         }
         StringBuilder builder = new StringBuilder();
@@ -237,6 +238,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         try {
             connection = (HttpsURLConnection) new URL(urlString).openConnection();
             connection.setSSLSocketFactory(sslContext.getSocketFactory());
+            connection.setHostnameVerifier(new OpenHostnameVerifier());
             connection.setUseCaches(false);
             connection.setDoInput(true);
             connection.setRequestMethod("POST");
@@ -272,6 +274,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         try {
             connection = (HttpsURLConnection) new URL(urlString).openConnection();
             connection.setSSLSocketFactory(sslContext.getSocketFactory());
+            connection.setHostnameVerifier(new OpenHostnameVerifier());
             connection.setUseCaches(false);
             connection.setDoOutput(false);
             connection.setDoInput(true);
