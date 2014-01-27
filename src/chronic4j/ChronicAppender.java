@@ -55,7 +55,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
 
     static Logger logger = LoggerFactory.getLogger(ChronicAppender.class);
 
-    private final String resolveUrl = "https://secure.chronica.co/resolve";
+    private String resolveUrl = "https://secure.chronica.co/resolve";
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     private final ArrayDeque<LoggingEvent> deque = new ArrayDeque();
     private long period = TimeUnit.SECONDS.toMillis(60);
@@ -73,10 +73,10 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     public ChronicAppender() {
     }
 
-    public ChronicAppender(String postAddress) {
-        this.postUrl = postAddress;
+    public void setResolveUrl(String resolveUrl) {
+        this.resolveUrl = resolveUrl;
     }
-
+    
     public void setKeyStore(String keyStore) {
         this.keyStoreLocation = keyStore;
     }
@@ -185,13 +185,9 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
 
     private void post() {
         if (postUrl == null) {
-            String response = post(resolveUrl);
-            if (response.startsWith("ERROR")) {
-                logger.error("resolve {}", response);
-                return;
+            if (!resolve()) {
+                return ;
             }
-            postUrl = String.format("https://%s/post", response);
-            logger.info("resolve {}", postUrl);
         }
         StringBuilder builder = new StringBuilder();
         String report = processor.buildReport();
@@ -219,22 +215,38 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         post(postUrl, builder.toString());
     }
 
+    public boolean resolve() {
+        String response = post(resolveUrl);
+        if (response == null || response.startsWith("ERROR")) {
+            logger.error("resolve {}", response);
+            return false;
+        } else {
+            postUrl = String.format("https://%s/post", response);
+            logger.info("resolve {}", postUrl);
+            return true;
+        }
+    }
+    
     private String post(String urlString, String string) {
         HttpsURLConnection connection;
         String response = null;
         try {
-            byte[] bytes = string.getBytes();
-            logger.trace("post: {}", bytes.length);
             connection = (HttpsURLConnection) new URL(urlString).openConnection();
             connection.setSSLSocketFactory(sslContext.getSocketFactory());
             connection.setUseCaches(false);
-            connection.setDoOutput(true);
             connection.setDoInput(true);
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "plain/text");
-            connection.setRequestProperty("Content-Length", Integer.toString(bytes.length));
-            try (OutputStream outputStream = connection.getOutputStream()) {
-                outputStream.write(bytes);
+            if (string != null) {
+                byte[] bytes = string.getBytes();
+                logger.trace("post: {}", bytes.length);
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Content-Length", Integer.toString(bytes.length));
+                try (OutputStream outputStream = connection.getOutputStream()) {
+                    outputStream.write(bytes);
+                }
+            } else {
+                connection.setDoOutput(false);                
             }
             logger.info("responseCode {}", connection.getResponseCode());
             try (InputStream inputStream = connection.getInputStream()) {
