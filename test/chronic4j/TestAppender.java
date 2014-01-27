@@ -58,7 +58,8 @@ public class TestAppender {
 
     @Test
     public void test() throws InterruptedException {
-        ChronicAppender appender = new ChronicAppender("https://localhost:8444/post");
+        ChronicAppender appender = new ChronicAppender();
+        appender.setResolveUrl("https://localhost:8444/post");
         Logger.getRootLogger().getLoggerRepository().resetConfiguration();
         Logger.getRootLogger().addAppender(new ConsoleAppender(new PatternLayout("%d{ISO8601} %p [%c{1}] %m%n")));
         Logger.getRootLogger().addAppender(appender);
