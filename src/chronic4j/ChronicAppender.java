@@ -216,6 +216,10 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     }
 
     public boolean resolve() {
+        if (resolveUrl.equals("https://localhost:8444/resolve")) {
+            postUrl = "https://localhost:8444/post";
+            return true;
+        }
         String response = post(resolveUrl);
         if (response == null || response.startsWith("ERROR")) {
             logger.error("resolve {}", response);
