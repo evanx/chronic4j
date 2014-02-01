@@ -48,9 +48,7 @@ import vellum.util.Streams;
 public class TestAppender implements HttpHandler {
     String keyStoreLocation = System.getProperty("user.home") + "/.chronica/etc/keystore.jks";
     char[] sslPass = "chronica".toCharArray();
-    String response;
-    String request;
-    String path; 
+    int requestCount = 0;
 
     static {
         BasicConfigurator.configure(new ConsoleAppender(new PatternLayout("%d{ISO8601} %p [%c{1}] %m%n")));
@@ -78,32 +76,37 @@ public class TestAppender implements HttpHandler {
     @Test
     public void test() throws Exception {
         VellumHttpsServer server = new VellumHttpsServer();
-        server.start(new HttpsServerProperties(8444, false, true), 
-                SSLContexts.create(keyStoreLocation, sslPass),
-                this);
-        ChronicAppender appender = new ChronicAppender();
-        path = "/resolve";
-        response = "localhost:8444\n";
-        appender.setResolveUrl("https://localhost:8444/resolve");
-        Logger.getRootLogger().addAppender(appender);
-        Logger logger = Logger.getLogger(TestAppender.class);
-        logger.warn("test");
-        path = "/post";
-        response = "OK:\n";
-        appender.run();
-        Assert.assertTrue(request.startsWith("Topic: chronic4j appender"));
-        server.shutdown();
+        try {
+            server.start(new HttpsServerProperties(8444, false, true),
+                    SSLContexts.create(keyStoreLocation, sslPass),
+                    this);
+            ChronicAppender appender = new ChronicAppender();
+            appender.setResolveUrl("https://localhost:8444/resolve");
+            Logger.getRootLogger().addAppender(appender);
+            Logger logger = Logger.getLogger(TestAppender.class);
+            logger.warn("test");
+            appender.run();
+        } finally {
+            server.shutdown();
+        }
     }
 
     @Override
     public void handle(HttpExchange he) throws IOException {
-        Assert.assertEquals(path, he.getRequestURI().getPath());
-        request = Streams.readString(he.getRequestBody());
+        String response;
+        String request = Streams.readString(he.getRequestBody());
+        if (he.getRequestURI().getPath().equals("/resolve")) {
+            response = "localhost:8444\n";
+        } else {
+            Assert.assertTrue(request.startsWith("Topic: chronic4j appender"));
+            response = "OK:\n";
+        }
         byte[] responseBytes = response.getBytes();
         he.sendResponseHeaders(HttpURLConnection.HTTP_OK,
                 responseBytes.length);
         he.getResponseHeaders().set("Content-type", "text/plain");
         he.getResponseBody().write(responseBytes);
         he.close();
+        requestCount++;
     }
 }
