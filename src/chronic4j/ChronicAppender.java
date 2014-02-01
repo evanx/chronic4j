@@ -144,7 +144,6 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         try {
             sslContext = SSLContexts.create(keyStoreLocation, sslPass, new OpenTrustManager());
             poster.init(sslContext);
-            resolve();
             running = true;
             long initialDelay = period;
             scheduledExecutorService.scheduleAtFixedRate(this, initialDelay, period, TimeUnit.MILLISECONDS);
