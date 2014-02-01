@@ -21,22 +21,41 @@
  */
 package chronic4j;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import vellum.httpserver.HttpsServerProperties;
+import vellum.httpserver.VellumHttpsServer;
+import vellum.ssl.SSLContexts;
+import vellum.util.Streams;
 
 
 /**
  *
  * @author evans
  */
-public class TestAppender {
+public class TestAppender implements HttpHandler {
+    String keyStoreLocation = System.getProperty("user.home") + "/.chronica/etc/keystore.jks";
+    char[] sslPass = "chronica".toCharArray();
+    String response;
+    String request;
+    String path; 
 
+    static {
+        BasicConfigurator.configure(new ConsoleAppender(new PatternLayout("%d{ISO8601} %p [%c{1}] %m%n")));
+    }
+    
     public TestAppender() {
     }
 
@@ -57,14 +76,34 @@ public class TestAppender {
     }
 
     @Test
-    public void test() throws InterruptedException {
+    public void test() throws Exception {
+        VellumHttpsServer server = new VellumHttpsServer();
+        server.start(new HttpsServerProperties(8444, false, true), 
+                SSLContexts.create(keyStoreLocation, sslPass),
+                this);
         ChronicAppender appender = new ChronicAppender();
-        appender.setResolveUrl("https://localhost:8444/post");
-        Logger.getRootLogger().getLoggerRepository().resetConfiguration();
-        Logger.getRootLogger().addAppender(new ConsoleAppender(new PatternLayout("%d{ISO8601} %p [%c{1}] %m%n")));
+        path = "/resolve";
+        response = "localhost:8444\n";
+        appender.setResolveUrl("https://localhost:8444/resolve");
         Logger.getRootLogger().addAppender(appender);
         Logger logger = Logger.getLogger(TestAppender.class);
         logger.warn("test");
+        path = "/post";
+        response = "OK:\n";
         appender.run();
+        Assert.assertTrue(request.startsWith("Topic: chronic4j appender"));
+        server.shutdown();
+    }
+
+    @Override
+    public void handle(HttpExchange he) throws IOException {
+        Assert.assertEquals(path, he.getRequestURI().getPath());
+        request = Streams.readString(he.getRequestBody());
+        byte[] responseBytes = response.getBytes();
+        he.sendResponseHeaders(HttpURLConnection.HTTP_OK,
+                responseBytes.length);
+        he.getResponseHeaders().set("Content-type", "text/plain");
+        he.getResponseBody().write(responseBytes);
+        he.close();
     }
 }
