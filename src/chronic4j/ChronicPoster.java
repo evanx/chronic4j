@@ -62,8 +62,8 @@ public class ChronicPoster {
     }
 
     public String post(String urlString, String string) throws IOException {
+        logger.info("post {} {}", urlString, string);
         HttpsURLConnection connection;
-        String response;
         connection = (HttpsURLConnection) new URL(urlString).openConnection();
         connection.setSSLSocketFactory(sslContext.getSocketFactory());
         connection.setHostnameVerifier(new OpenHostnameVerifier());
@@ -76,9 +76,9 @@ public class ChronicPoster {
                 return "ERROR: length exceeded";
             }
             byte[] bytes = string.getBytes();
-            logger.trace("post: {}", bytes.length);
-            connection.setDoOutput(true);
+            logger.info("post {}", bytes.length);
             connection.setRequestProperty("Content-Length", Integer.toString(bytes.length));
+            connection.setDoOutput(true);
             try (OutputStream outputStream = connection.getOutputStream()) {
                 outputStream.write(bytes);
             }
@@ -86,6 +86,7 @@ public class ChronicPoster {
             connection.setDoOutput(false);
         }
         logger.info("responseCode {}", connection.getResponseCode());
+        String response;
         try (InputStream inputStream = connection.getInputStream()) {
             response = Streams.readString(inputStream);
             logger.debug("chronica response {}", response);

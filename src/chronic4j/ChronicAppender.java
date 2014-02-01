@@ -174,18 +174,22 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
             deque.clear();
         }
         try {
-            post();
+            if (postUrl == null) {
+                if (resolveUrl.equals("https://localhost:8444/resolve")) {
+                    postUrl = "https://localhost:8444/post";
+                } else {
+                    resolve();
+                }
+            }
+            if (postUrl != null) {
+                post();
+            }
         } catch (Throwable e) {
             logger.error("run", e);
         }
     }
 
     private void post() {
-        if (postUrl == null) {
-            if (!resolve()) {
-                return;
-            }
-        }
         StringBuilder builder = new StringBuilder();
         String report = processor.buildReport();
         if (!report.startsWith("Topic: ")) {
@@ -214,24 +218,18 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         }
     }
 
-    public boolean resolve() {
-        if (resolveUrl.equals("https://localhost:8444/resolve")) {
-            postUrl = "https://localhost:8444/post";
-            return true;
-        }
+    public void resolve() {
         try {
+            logger.info("resolve {}", resolveUrl);
             String response = poster.post(resolveUrl);
             if (response == null || response.startsWith("ERROR")) {
                 logger.error("resolve {}", response);
-                return false;
             } else {
                 postUrl = String.format("https://%s/post", response);
-                logger.info("resolve {}", postUrl);
-                return true;
+                logger.info("resolved postUrl {}", postUrl);
             }
         } catch (IOException e) {
             logger.warn(resolveUrl, e);
-            return false;
         }
     }
     
