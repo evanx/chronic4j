@@ -59,7 +59,7 @@ public class ChronicPoster {
 
     public String post(String urlString, String string) throws IOException {
         HttpsURLConnection connection;
-        String response = null;
+        String response;
         connection = (HttpsURLConnection) new URL(urlString).openConnection();
         connection.setSSLSocketFactory(sslContext.getSocketFactory());
         connection.setHostnameVerifier(new OpenHostnameVerifier());
@@ -87,6 +87,6 @@ public class ChronicPoster {
             logger.debug("chronica response {}", response);
         }
         connection.disconnect();
-        return response;
+        return response.trim();
     }
 }

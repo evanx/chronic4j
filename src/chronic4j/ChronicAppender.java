@@ -21,9 +21,6 @@
 package chronic4j;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -31,7 +28,6 @@ import java.util.TimeZone;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Priority;
@@ -42,11 +38,9 @@ import vellum.data.Millis;
 import vellum.exception.ParseException;
 import vellum.format.CalendarFormats;
 import vellum.format.Delimiters;
-import vellum.ssl.OpenHostnameVerifier;
 import vellum.ssl.OpenTrustManager;
 import vellum.ssl.SSLContexts;
 import vellum.util.Args;
-import vellum.util.Streams;
 
 /**
  *
@@ -69,6 +63,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     private char[] sslPass = "chronica".toCharArray();
     SSLContext sslContext;
     ChronicProcessor processor = new DefaultProcessor();
+    ChronicPoster poster = new ChronicPoster();
     String topicLabel;
 
     public ChronicAppender() {
@@ -204,16 +199,18 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
             String formattedString = Args.formatDelimiterSquash(Delimiters.SPACE,
                     CalendarFormats.timestampFormat.format(TimeZone.getDefault(), event.getTimeStamp()),
                     event.getLevel().toString(),
-                    event.getLoggerName(),
-                    event.getMDC("method"),
-                    event.getMessage().toString());
+                    event.getLoggerName());
             if (builder.length() + formattedString.length() + 1 >= maximumPostLength) {
                 break;
             }
             builder.append(formattedString);
             builder.append("\n");
         }
-        post(postUrl, builder.toString());
+        try {
+            poster.post(postUrl, builder.toString());
+        } catch (IOException e) {
+            logger.warn(postUrl, e);
+        }
     }
 
     public boolean resolve() {
@@ -221,75 +218,19 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
             postUrl = "https://localhost:8444/post";
             return true;
         }
-        String response = post(resolveUrl);
-        if (response == null || response.startsWith("ERROR")) {
-            logger.error("resolve {}", response);
-            return false;
-        } else {
-            postUrl = String.format("https://%s/post", response);
-            logger.info("resolve {}", postUrl);
-            return true;
-        }
-    }
-    
-    private String post(String urlString, String string) {
-        HttpsURLConnection connection;
-        String response = null;
         try {
-            connection = (HttpsURLConnection) new URL(urlString).openConnection();
-            connection.setSSLSocketFactory(sslContext.getSocketFactory());
-            connection.setHostnameVerifier(new OpenHostnameVerifier());
-            connection.setUseCaches(false);
-            connection.setDoInput(true);
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "plain/text");
-            if (string != null) {
-                byte[] bytes = string.getBytes();
-                logger.trace("post: {}", bytes.length);
-                connection.setDoOutput(true);
-                connection.setRequestProperty("Content-Length", Integer.toString(bytes.length));
-                try (OutputStream outputStream = connection.getOutputStream()) {
-                    outputStream.write(bytes);
-                }
+            String response = poster.post(resolveUrl);
+            if (response == null || response.startsWith("ERROR")) {
+                logger.error("resolve {}", response);
+                return false;
             } else {
-                connection.setDoOutput(false);                
+                postUrl = String.format("https://%s/post", response);
+                logger.info("resolve {}", postUrl);
+                return true;
             }
-            logger.info("responseCode {}", connection.getResponseCode());
-            try (InputStream inputStream = connection.getInputStream()) {
-                response = Streams.readString(inputStream);
-                logger.debug("chronica response {}", response);
-            }
-            connection.disconnect();
         } catch (IOException e) {
-            logger.warn("post", e);
-        } finally {
+            logger.warn(resolveUrl, e);
+            return false;
         }
-        return response;
-    }
-
-    private String post(String urlString) {
-        logger.info("post {}", urlString);
-        HttpsURLConnection connection;
-        String response = null;
-        try {
-            connection = (HttpsURLConnection) new URL(urlString).openConnection();
-            connection.setSSLSocketFactory(sslContext.getSocketFactory());
-            connection.setHostnameVerifier(new OpenHostnameVerifier());
-            connection.setUseCaches(false);
-            connection.setDoOutput(false);
-            connection.setDoInput(true);
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "plain/text");
-            logger.info("responseCode {}", connection.getResponseCode());
-            try (InputStream inputStream = connection.getInputStream()) {
-                response = Streams.readString(inputStream);
-                logger.debug("chronica response {}", response);
-            }
-            connection.disconnect();
-        } catch (IOException e) {
-            logger.warn("post", e);
-        } finally {
-        }
-        return response;
     }
 }
