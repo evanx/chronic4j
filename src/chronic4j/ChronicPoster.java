@@ -50,9 +50,13 @@ public class ChronicPoster {
     }
 
     public void init(KeyStore keyStore, char[] pass) throws GeneralSecurityException {
-        sslContext = SSLContexts.create(keyStore, pass, new OpenTrustManager());
+        init(SSLContexts.create(keyStore, pass, new OpenTrustManager()));
     }
 
+    public void init(SSLContext sslContext) {
+        this.sslContext = sslContext;
+    }
+    
     public String post(String urlString) throws IOException {
         return post(urlString, null);
     }
@@ -89,4 +93,5 @@ public class ChronicPoster {
         connection.disconnect();
         return response.trim();
     }
+
 }

@@ -143,6 +143,8 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         logger.info("initialize {} {}", topicLabel, processor.getClass().getName());
         try {
             sslContext = SSLContexts.create(keyStoreLocation, sslPass, new OpenTrustManager());
+            poster.init(sslContext);
+            resolve();
             running = true;
             long initialDelay = period;
             scheduledExecutorService.scheduleAtFixedRate(this, initialDelay, period, TimeUnit.MILLISECONDS);
@@ -233,4 +235,8 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
             return false;
         }
     }
+    
+    public String getPostUrl() {
+        return postUrl;
+    }       
 }
