@@ -49,6 +49,7 @@ public class TestAppender implements HttpHandler {
     String keyStoreLocation = System.getProperty("user.home") + "/.chronica/etc/keystore.jks";
     char[] sslPass = "chronica".toCharArray();
     int requestCount = 0;
+    String request;
 
     static {
         BasicConfigurator.configure(new ConsoleAppender(new PatternLayout("%d{ISO8601} %p [%c{1}] %m%n")));
@@ -86,6 +87,7 @@ public class TestAppender implements HttpHandler {
             Logger logger = Logger.getLogger(TestAppender.class);
             logger.warn("test");
             appender.run();
+            Assert.assertTrue(request.startsWith("Topic: chronic4j appender"));
         } finally {
             server.shutdown();
         }
@@ -94,10 +96,11 @@ public class TestAppender implements HttpHandler {
     @Override
     public void handle(HttpExchange he) throws IOException {
         String response;
-        String request = Streams.readString(he.getRequestBody());
+        request = Streams.readString(he.getRequestBody());
         if (he.getRequestURI().getPath().equals("/resolve")) {
             response = "localhost:8444\n";
         } else {
+            Assert.assertNotNull(he.getRequestHeaders().getFirst("Content-length"));
             Assert.assertTrue(request.startsWith("Topic: chronic4j appender"));
             response = "OK:\n";
         }
