@@ -53,15 +53,15 @@ public class DefaultProcessor implements ChronicProcessor {
     
     @Override
     public String buildReport() {
-        List<String> list = new ArrayList();
-        list.add("Topic: chronic4j appender");
-        list.add("Alert: NEVER");
-        list.add(String.format("Value: error %d", errorCount));
-        list.add(String.format("Value: warn %d", warnCount));
-        list.add(String.format("Value: info %d", infoCount));
-        list.add(String.format("Value: debug %d", debugCount));
+        StringBuilder builder = new StringBuilder();
+        builder.append("Topic: chronic4j appender\n");
+        builder.append("Alert: NEVER\n");
+        builder.append(String.format("Value: error %d\n", errorCount));
+        builder.append(String.format("Value: warn %d\n", warnCount));
+        builder.append(String.format("Value: info %d\n", infoCount));
+        builder.append(String.format("Value: debug %d\n", debugCount));
         reset();
-        return Strings.join("\n", list);
+        return builder.toString();
     }
 
     public void reset() {

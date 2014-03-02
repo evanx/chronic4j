@@ -62,7 +62,7 @@ public class ChronicPoster {
     }
 
     public String post(String urlString, String string) throws IOException {
-        logger.info("post {} {}", urlString, string);
+        logger.trace("post {} {}", urlString, string);
         HttpsURLConnection connection;
         connection = (HttpsURLConnection) new URL(urlString).openConnection();
         connection.setSSLSocketFactory(sslContext.getSocketFactory());
