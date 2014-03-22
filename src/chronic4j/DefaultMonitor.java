@@ -20,17 +20,14 @@
  */
 package chronic4j;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.log4j.Priority;
 import org.apache.log4j.spi.LoggingEvent;
-import vellum.util.Strings;
 
 /**
  *
  * @author evan.summers
  */
-public class DefaultProcessor implements ChronicProcessor {
+public class DefaultMonitor implements ChronicMonitor {
     int errorCount;
     int warnCount;
     int infoCount;

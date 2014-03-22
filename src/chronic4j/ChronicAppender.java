@@ -62,7 +62,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
     private String keyStoreLocation = System.getProperty("user.home") + "/.chronica/etc/keystore.jks";
     private char[] sslPass = "chronica".toCharArray();
     SSLContext sslContext;
-    ChronicProcessor processor = new DefaultProcessor();
+    ChronicMonitor monitor = new DefaultMonitor();
     ChronicPoster poster = new ChronicPoster();
     String topicLabel;
 
@@ -89,15 +89,19 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
         this.sslPass = pass.toCharArray();
     }
 
-    public void setProcessorClass(String className) {
+    public void setMonitor(ChronicMonitor monitor) {
+        this.monitor = monitor;
+    }
+    
+    public void setMonitorClass(String className) {
         try {
-            processor = (ChronicProcessor) Class.forName(className).newInstance();
+            monitor = (ChronicMonitor) Class.forName(className).newInstance();
             if (topicLabel == null) {
-                topicLabel = processor.getClass().getSimpleName();
+                topicLabel = monitor.getClass().getSimpleName();
             }
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
-            logger.warn("Invalid processor class: {}", className);
-            processor = null;
+            logger.warn("Invalid monitor class: {}", className);
+            monitor = null;
         }
     }
 
@@ -119,18 +123,22 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
                 synchronized (deque) {
                     deque.clear();
                 }
+            } else if (monitor == null) {
+                synchronized (deque) {
+                    deque.clear();
+                }
             } else {
                 synchronized (deque) {
                     deque.add(le);
                 }
-                processor.process(le);
+                monitor.process(le);
             }
         }
     }
 
     private void initialize() {
-        if (processor == null) {
-            logger.error("Require processor class parameter: processorClass");
+        if (monitor == null) {
+            logger.error("Require class parameter: monitorClass");
             return;
         }
         if (keyStoreLocation == null || sslPass == null) {
@@ -138,9 +146,9 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
             return;
         }
         if (topicLabel == null) {
-            topicLabel = processor.getClass().getSimpleName();
+            topicLabel = monitor.getClass().getSimpleName();
         }
-        logger.info("initialize {} {}", topicLabel, processor.getClass().getName());
+        logger.info("initialize {} {}", topicLabel, monitor.getClass().getName());
         try {
             sslContext = SSLContexts.create(keyStoreLocation, sslPass, new OpenTrustManager());
             poster.init(sslContext);
@@ -181,7 +189,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
                     resolve();
                 }
             }
-            if (postUrl != null) {
+            if (postUrl != null && monitor != null) {
                 post();
             }
         } catch (Throwable e) {
@@ -191,7 +199,7 @@ public class ChronicAppender extends AppenderSkeleton implements Runnable {
 
     private void post() {
         StringBuilder builder = new StringBuilder();
-        String report = processor.buildReport();
+        String report = monitor.buildReport();
         if (!report.startsWith("Topic: ")) {
             builder.append(String.format("Topic: %s\n", topicLabel));
         }

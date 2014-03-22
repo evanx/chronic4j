@@ -29,9 +29,9 @@ import vellum.util.Strings;
  *
  * @author evan.summers
  */
-public class ChronicProcessors {
+public class ChronicMonitors {
 
-    public String buildReport(Map map) {
+    public static String buildReport(Map map) {
         List<String> list = new ArrayList();
         list.add("Topic: chronic4j appender");
         list.add("Alert: NEVER");

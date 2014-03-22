@@ -26,7 +26,7 @@ import org.apache.log4j.spi.LoggingEvent;
  *
  * @author evan.summers
  */
-public interface ChronicProcessor {
+public interface ChronicMonitor {
     public void process(LoggingEvent le);
     public String buildReport();
 }
